@@ -4,7 +4,7 @@
 
 - [Live Shiny app](https://sheshma-jaganathan.shinyapps.io/ads506-wine-forecasts/)
 - [GitHub repository](https://github.com/SheshmaJ/australian-wine-sales-forecasting)
-- [Forecasting notebook](docs/forecast-workflow.qmd)
+- [Forecasting notebook](docs/forecast-notebook.qmd)
 - [Data story](docs/data-story.qmd)
 
 ## Introduction
