@@ -1,0 +1,122 @@
+---
+title: "Australian Wine Sales Forecasting"
+format: html
+execute:
+  warning: false
+  message: false
+---
+
+Use this notebook to follow the analysis without opening the app. Change the example settings to try a different comparison. In the app, these settings come from the controls.
+
+## 1. Load and prepare the sales data
+
+Each row in the monthly time series represents one wine type and one month. Sales are measured in thousand liters.
+
+```{r}
+library(fpp3)
+library(readr)
+library(urca)
+
+csv <- if (file.exists("data/AustralianWines.csv")) {
+  "data/AustralianWines.csv"
+} else {
+  "../data/AustralianWines.csv"
+}
+
+wine <- read_csv(csv, na = "*", show_col_types = FALSE) |>
+  rename_with(trimws) |>
+  rename(Sparkling = sparkling) |>
+  mutate(Month = yearmonth(as.Date(paste0("01-", Month), "%d-%b-%y"))) |>
+  pivot_longer(-Month, names_to = "Varietal", values_to = "Sales") |>
+  as_tsibble(index = Month, key = Varietal)
+
+selected_wines <- c("Fortified", "Red")
+first_month <- yearmonth("1980 Jan")
+last_month <- yearmonth("1994 Dec")
+
+selected <- wine |>
+  filter(Varietal %in% selected_wines) |>
+  filter_index(as.character(first_month) ~ as.character(last_month))
+
+autoplot(selected, Sales) +
+  facet_wrap(vars(Varietal), scales = "free_y") +
+  labs(x = NULL, y = "Sales (thousand liters)")
+```
+
+## 2. Split the data
+
+Models learn from the early months. The later months show how well those models predict new sales. Missing training values use the previous observed value for the same wine type.
+
+```{r}
+train_end <- yearmonth("1993 Dec")
+
+training <- selected |>
+  filter_index(. ~ as.character(train_end)) |>
+  group_by(Varietal) |>
+  fill(Sales, .direction = "down") |>
+  ungroup()
+
+validation <- selected |> filter_index(as.character(train_end + 1) ~ .)
+```
+
+## 3. Fit three models per wine type
+
+TSLM uses a straight-line trend and a pattern for each month. ETS and ARIMA choose their settings using the training data.
+
+```{r}
+fits <- training |> model(
+  TSLM = TSLM(Sales ~ trend() + season()),
+  ETS = ETS(Sales),
+  ARIMA = ARIMA(Sales)
+)
+
+# Show the chosen forms, including ETS components and ARIMA orders.
+fits
+```
+
+## 4. Make forecasts
+
+The first forecast has the length chosen for the chart. The second covers every validation month for scoring.
+
+```{r}
+h <- 12
+chart_forecast <- forecast(fits, h = h)
+validation_forecast <- forecast(fits, h = n_distinct(validation$Month))
+```
+
+## 5. Compare accuracy
+
+Training scores show how well the models fit past sales. Validation scores show how well they predicted later months. Lower values are better.
+
+```{r}
+measures <- list(RMSE = RMSE, MAE = MAE, MAPE = MAPE)
+
+training_scores <- fabletools::accuracy(fits, measures = measures)
+validation_scores <- fabletools::accuracy(
+  validation_forecast, selected, measures = measures
+)
+
+bind_rows(Training = training_scores, Validation = validation_scores, .id = "Period") |>
+  select(Varietal, Period, Model = .model, RMSE, MAE, MAPE) |>
+  arrange(Varietal, Period, RMSE) |>
+  mutate(across(c(RMSE, MAE, MAPE), ~ round(.x, 2)))
+```
+
+## 6. Plot actual sales and forecasts
+
+The gray line shows recent actual sales. Each model has its own panel so its 80% and 95% prediction bands stay easy to read.
+
+```{r}
+recent_sales <- selected |>
+  filter(Month > train_end - 24, Month <= max(chart_forecast$Month))
+
+autoplot(chart_forecast, recent_sales, level = c(80, 95)) +
+  facet_grid(Varietal ~ .model, scales = "free_y") +
+  labs(x = NULL, y = "Sales (thousand liters)") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+## 7. About and reproduction
+
+The data come from the AustralianWines.csv file supplied for ADS-506. To recreate the report figure in the app, select **Fortified** and **Red**, choose **January 1980 to December 1994**, set **December 1993** as the last training month, and choose **12 months** to predict. Leave all three models selected and show **24 months** of past sales. The app's **About** tab repeats these settings.
