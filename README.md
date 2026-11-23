@@ -1,12 +1,13 @@
 # Australian Wine Sales · ADS-506 Module 5
 
-## Project links
+## Project Deliverables
 
-- [Live Shiny app](https://sheshma-jaganathan.shinyapps.io/ads506-wine-forecasts/)
-- [GitHub repository](https://github.com/SheshmaJ/australian-wine-sales-forecasting)
-- [Forecasting notebook](docs/forecast-notebook.qmd)
-- [Data story](docs/data-story.qmd)
-
+- 📊 [**Interactive Shiny Dashboard**](https://sheshma-jaganathan.shinyapps.io/ads506-wine-forecasts/)
+  
+- 💻  [**Forecasting notebook**](docs/forecast-notebook.qmd)
+  
+- 📈 [**Data story**](docs/data-story.qmd)
+  
 ## Introduction
 
 This project uses monthly Australian wine sales from 1980 to 1994 to explore sales patterns and compare forecasting models. The R Shiny app lets users explore six wine varieties without writing code.
